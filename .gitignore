@@ -1,0 +1,7 @@
+log*
+archive
+data
+*.txt
+plot
+*.ps1
+*__pycache__

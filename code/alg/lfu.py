@@ -21,6 +21,8 @@ class LFU:
         self.cache_size = cache_size
         self.lfu = HeapDict()
         self.time = 0
+        # Complete hit history tracking
+        self.complete_hit_history = []  # Will store the complete hit history
 
     def __contains__(self, oblock):
         return oblock in self.lfu
@@ -37,6 +39,14 @@ class LFU:
         x.freq += 1
         x.time = self.time
         self.lfu[oblock] = x
+        # Add to complete hit history
+        self.complete_hit_history.append({
+            "time": self.time,
+            "oblock": oblock,
+            "hit": True,
+            "evicted": None,
+            "freq": x.freq
+        })
 
     def evict(self):
         lfu_min = self.lfu.popMin()
@@ -48,6 +58,16 @@ class LFU:
         if len(self.lfu) == self.cache_size:
             evicted = self.evict()
         self.addToCache(oblock)
+
+ 
+        # Add to complete hit history
+        self.complete_hit_history.append({
+            "time": self.time,
+            "oblock": oblock,
+            "hit": False,
+            "evicted": evicted,
+            "freq": 1
+        })
 
         return evicted
 
@@ -65,3 +85,10 @@ class LFU:
 
 
         return miss, evicted
+
+    # Method to get complete hit history or a subset of it
+    def get_hit_history(self, last_n=None):
+        if last_n is None:
+            return self.complete_hit_history
+        else:
+            return self.complete_hit_history[-last_n:]

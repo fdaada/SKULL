@@ -44,7 +44,7 @@ class LeCaR:
         self.history_size = cache_size
         self.lru_hist = DequeDict()
         self.lfu_hist = DequeDict()
-
+        self.current_policy = 0
         # Decision Weights Initilized
         self.initial_weight = 0.5
 
@@ -57,7 +57,8 @@ class LeCaR:
         # Decision Weights
         self.W = np.array([self.initial_weight, 1 - self.initial_weight],
                           dtype=np.float32)
-
+        # Complete hit history tracking
+        self.complete_hit_history = []  # Will store the complete hit history
     # True if oblock is in cache (which LRU can represent)
     def __contains__(self, oblock):
         return oblock in self.lru
@@ -108,7 +109,7 @@ class LeCaR:
 
         evicted = lru
         policy = self.getChoice()
-
+        self.current_policy = policy
         # Since we're using Entry references, we use is to check
         # that the LRU and LFU Entries are the same Entry
         if lru is lfu:
@@ -136,7 +137,15 @@ class LeCaR:
 
         x.freq += 1
         self.lfu[oblock] = x
-
+        # Add to complete hit history
+        self.complete_hit_history.append({
+            "time": self.time,
+            "oblock": oblock,
+            "hit": True,
+            "policy": self.current_policy,
+            "evicted": None,
+            "freq": x.freq
+        }) 
     # Adjust the weights based on the given rewards for LRU and LFU
     def adjustWeights(self, rewardLRU, rewardLFU):
         reward = np.array([rewardLRU, rewardLFU], dtype=np.float32)
@@ -173,7 +182,15 @@ class LeCaR:
             evicted, policy = self.evict()
 
         self.addToCache(oblock, freq)
-
+        # Add to complete hit history
+        self.complete_hit_history.append({
+            "time": self.time,
+            "oblock": oblock,
+            "hit": False,
+            "policy": self.current_policy,
+            "evicted": evicted,
+            "freq": freq,
+        })
         return evicted
 
     # Process and access request for the given oblock
@@ -190,3 +207,9 @@ class LeCaR:
             evicted = self.miss(oblock)
 
         return miss, evicted
+    # Method to get complete hit history or a subset of it
+    def get_hit_history(self, last_n=None):
+        if last_n is None:
+            return self.complete_hit_history
+        else:
+            return self.complete_hit_history[-last_n:]
